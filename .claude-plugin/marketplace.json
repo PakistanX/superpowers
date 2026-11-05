@@ -15,6 +15,15 @@
         "name": "Jesse Vincent",
         "email": "jesse@fsck.com"
       }
+    },
+    {
+      "name": "ilmx",
+      "description": "ilmX agents and skills for the Juniper to Verawood upgrade (install together with superpowers).",
+      "version": "0.1.0",
+      "source": "./plugins/ilmx",
+      "author": {
+        "name": "ilmX engineering"
+      }
     }
   ]
 }
