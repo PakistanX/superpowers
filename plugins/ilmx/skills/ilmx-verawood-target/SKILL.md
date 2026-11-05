@@ -19,7 +19,7 @@ Tutor's `openedx` image with a MongoDB service.
 | `openedx-org-membership` | Reusable plugin: organization membership and roles, and access scoped by organization. Certificates belong with it, including a small independent view-only service so issued certificates keep working if ilmX is retired. No dependency on ilmX code. |
 | `ilmx-adminpanel` | The admin panel backend API (users, roles, bulk registration and enrolment, analytics, reports, course management) used by the admin MFE. Depends on `openedx-org-membership`. |
 | `frontend-app-ilmx-admin` | The admin panel MFE that talks to `ilmx-adminpanel`. |
-| `ilmx-widgets` | The ilmX React widgets rendered into MFE plugin slots, published as a pinned package that `tutor-contrib-ilmx` installs. |
+| `frontend-ilmx-widgets` | The ilmX React widgets rendered into MFE plugin slots, published as a pinned package that `tutor-contrib-ilmx` installs. |
 | `ilmx-xblocks` | The XBlocks that exist only for ilmX, in one package. |
 | XBlock forks (upstream names: `edx-ora2`, `edx_xblock_scorm`, `xblock-drag-and-drop-v2`, `xblock-image-explorer`, `pxc`) | Forks of upstream XBlocks that carry ilmX changes, kept as small as possible and tracking the upstream release. |
 | `tutor-contrib-ilmx` | The Tutor plugin: configuration, mounts and installs, MFE slot components, theme installation. It also configures the reusable plugins for ilmX, which stay separate repositories so others can reuse them. No business logic. |
@@ -34,7 +34,7 @@ Pick the first option that works and write one line on why each earlier one does
 2. Plugin settings, plugin URLs, `openedx.course_tab` entry points, `PROFILE_EXTENSION_FORM`, Django middleware through plugin settings, `ModelAdmin` unregister and re-register (public API).
 3. Tutor patches and plugin config.
 4. A guarded start-up patch, last resort.
-Frontend: slots first, then widgets (`ilmx-widgets`), then MFE edits. Never import a private upstream name without a test that fails when upstream moves it. A zero-diff fork branch of edx-platform exists only for emergency backports.
+Frontend: slots first, then widgets (`frontend-ilmx-widgets`), then MFE edits. Never import a private upstream name without a test that fails when upstream moves it. A zero-diff fork branch of edx-platform exists only for emergency backports.
 
 ## Start-up patches
 A patch wraps one private upstream function, applies once, disables itself and logs if its target disappears, and has a test.
