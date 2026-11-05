@@ -1,0 +1,33 @@
+name: ilmx plugin
+
+on:
+  pull_request:
+    paths: ["plugins/ilmx/**", ".claude-plugin/marketplace.json", ".github/workflows/ilmx.yml"]
+  push:
+    branches: [main, develop]
+    paths: ["plugins/ilmx/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml pytest pytest-cov
+      - name: Validate the plugin
+        run: python plugins/ilmx/scripts/validate.py
+      - name: Tests (validator and guard hook), 100% of the validator
+        working-directory: plugins/ilmx
+        run: python -m pytest -q tests --cov=scripts --cov-fail-under=100
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Plugin manifest check
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate plugins/ilmx
