@@ -27,8 +27,24 @@ When both are involved, name the release in every finding, commit and PR ("Junip
 - Features are Django app plugins, XBlocks, Tutor plugins, MFE slots and themes; the platform itself is not forked.
 - Dev: the Tutor dev stack. Plugin tests run inside the Verawood image, not on the host.
 
-The repository map (names, paths, which repos are pushed) and the traps that are specific to ilmX are kept in the
-workspace's local notes, not in this skill. If they are not in your context, ask for them.
+## Repository map
+
+| Repository | Purpose |
+|---|---|
+| `ilmx-features-app` | ilmX features for Open edX as Django app plugins (edx-platform is not forked). Features are moved in from the Juniper codebase one at a time, each as a working deliverable. |
+| `openedx-org-membership` | Reusable plugin: organization membership and roles, and access scoped by organization. Certificates belong with it, including a small independent view-only service so issued certificates keep working if ilmX is retired. No dependency on ilmX code. |
+| `ilmx-adminpanel` | The admin panel backend API (users, roles, bulk registration and enrolment, analytics, reports, course management) used by the admin MFE. Depends on `openedx-org-membership`. |
+| `frontend-app-ilmx-admin` | The admin panel MFE that talks to `ilmx-adminpanel`. |
+| `ilmx-xblocks` | The XBlocks that exist only for ilmX, in one package. |
+| XBlock forks (upstream names: `edx-ora2`, `edx_xblock_scorm`, `xblock-drag-and-drop-v2`, `xblock-image-explorer`, `pxc`) | Forks of upstream XBlocks that carry ilmX changes, kept as small as possible and tracking the upstream release. |
+| `tutor-contrib-ilmx` | The Tutor plugin: configuration, mounts and installs, MFE slot components, theme installation. It also configures the reusable plugins for ilmX, which stay separate repositories so others can reuse them. No business logic. |
+| `ilmx-brand` | Brand layer for the LMS and the MFEs: Paragon design tokens and the stylesheet. |
+| MFE forks (upstream names: `frontend-app-authn`, `frontend-app-authoring`, `frontend-app-discussions`) | Forks of the upstream MFEs that add the plugin slots ilmX needs. |
+| `ilmx-payments-woocommerce` | The WordPress/WooCommerce shop for course checkout, connected to the LMS; replaces the retired ecommerce service. |
+| `ilmx-data-migrations` | The tools that move the Juniper data to Verawood: inventory, key rename, Mongo copy, forum prep, shop import. |
+
+Local paths, other repositories and the traps specific to ilmX are kept in the workspace's local notes, not in this
+skill. If they are not in your context, ask for them.
 
 ## Extension model: why there is no edx-platform fork
 
