@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""PreToolUse guard for the ilmX agents.
+
+Subagents ignore "do not publish" in their prompts, so it is enforced here. Plugin subagents ignore hooks in their own
+frontmatter, which is why this is a plugin-level hook keyed on `agent_type`. Every `ilmx-*` agent except the orchestrator
+is a worker: it may not push, publish, comment, write to Taiga or GitHub, or spawn agents, and its file writes are limited
+to its own output. The main thread and agents that are not ilmX agents are unaffected.
+"""
+import json
+import re
+import sys
+
+ORCHESTRATOR = "ilmx-orchestrator"
+# Read-only workers may not write files; these may write only a path containing the fragment. The implementer, the parity
+# tester and the writer write code, tests and drafts freely (they still cannot publish).
+READ_ONLY = {"ilmx-debugger", "ilmx-fetcher"}
+WRITE_ONLY_TO = {
+    "ilmx-planner": "/plans/",
+    "ilmx-parity-auditor": "/inventories/",
+    "ilmx-reviewer": "findings.json",
+}
+PUBLISHING_COMMAND = re.compile(
+    r"\bgit\s+push\b"
+    r"|\bgh\s+pr\s+(create|review|comment|merge|close|edit|reopen|ready|lock|unlock)\b"
+    r"|\bgh\s+issue\s+(create|comment|close|edit|reopen|delete|transfer|lock|unlock|pin|unpin)\b"
+    r"|\bgh\s+(release|workflow|repo|label|secret|variable|ruleset|gist)\s+(create|edit|delete|run|enable|disable|set|rename|fork|archive)\b"
+    r"|\bgh\s+api\b.*(\s-X\b|\s--method\b|\s-f\b|\s-F\b|\s--field\b|\s--raw-field\b|\s--input\b)",
+    re.S,
+)
+WRITE_TOOL = re.compile(
+    r"^mcp__github__(create_|add_|merge_|update_|push_|fork_|delete_)"
+    r"|^mcp__taiga__taiga_\w*?(_create|_update|_delete|_bulk|_comment|_upvote|_downvote|_watch|_unwatch|_add|_remove|_resend|_test|_import|_like|_unlike|_edit)",
+)
+
+
+def deny(message):
+    print(message, file=sys.stderr)
+    sys.exit(2)
+
+
+def main():
+    event = json.load(sys.stdin)
+    agent = (event.get("agent_type") or "").split(":")[-1]
+    if not agent.startswith("ilmx-") or agent == ORCHESTRATOR:
+        return
+    tool = event.get("tool_name", "")
+    tool_input = event.get("tool_input") or {}
+    if tool == "Agent":
+        deny(f"{agent} may not spawn agents. Hand back to the orchestrator.")
+    if tool == "Bash" and PUBLISHING_COMMAND.search(tool_input.get("command", "")):
+        deny(f"{agent} must not push, publish, comment or run write calls. Write your file or report and hand back; "
+             "the orchestrator publishes after the owner's go.")
+    if WRITE_TOOL.search(tool):
+        deny(f"{agent} must not write to GitHub or Taiga. Hand back; the orchestrator writes after the owner's go.")
+    if tool in ("Write", "Edit"):
+        path = tool_input.get("file_path", "")
+        allowed = WRITE_ONLY_TO.get(agent)
+        if agent in READ_ONLY or (allowed is not None and allowed not in path):
+            where = f"only to a path containing {allowed}" if allowed else "nothing"
+            deny(f"{agent} may write {where}. Hand back what you found instead of editing {path or 'a file'}.")
+
+
+if __name__ == "__main__":
+    main()
