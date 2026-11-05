@@ -1,0 +1,8 @@
+{
+  "name": "ilmx",
+  "description": "ilmX agents and skills for the Juniper to Verawood upgrade: an orchestrator that routes work and holds the gates, planner, implementer, parity auditor and tester, debugger, reviewer, writer and fetcher, with a guard hook that keeps workers from publishing. Builds on Superpowers; install both.",
+  "version": "0.1.0",
+  "author": { "name": "ilmX engineering" },
+  "license": "MIT",
+  "keywords": ["ilmx", "open-edx", "verawood", "agents"]
+}
