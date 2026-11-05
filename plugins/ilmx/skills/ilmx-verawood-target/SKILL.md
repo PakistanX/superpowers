@@ -13,20 +13,31 @@ Open edX Verawood (`release/verawood.1`), Tutor 22.0.3, Python 3.12, Django 5.2,
 Tutor's `openedx` image with a MongoDB service.
 
 ## Repository map
-| Repository | Purpose |
-|---|---|
-| `ilmx-features-app` | ilmX features for Open edX as Django app plugins (edx-platform is not forked). Features are moved in from the Juniper codebase one at a time, each as a working deliverable. |
-| `openedx-org-membership` | Reusable plugin: organization membership and roles, and access scoped by organization. Certificates belong with it, including a small independent view-only service so issued certificates keep working if ilmX is retired. No dependency on ilmX code. |
-| `ilmx-adminpanel` | The admin panel backend API (users, roles, bulk registration and enrolment, analytics, reports, course management) used by the admin MFE. Depends on `openedx-org-membership`. |
-| `frontend-app-ilmx-admin` | The admin panel MFE that talks to `ilmx-adminpanel`. |
-| `frontend-ilmx-widgets` | The ilmX React widgets rendered into MFE plugin slots, published as a pinned package that `tutor-contrib-ilmx` installs. |
-| `ilmx-xblocks` | The XBlocks that exist only for ilmX, in one package. |
-| XBlock forks (upstream names: `edx-ora2`, `edx_xblock_scorm`, `xblock-drag-and-drop-v2`, `xblock-image-explorer`, `pxc`) | Forks of upstream XBlocks that carry ilmX changes, kept as small as possible and tracking the upstream release. |
-| `tutor-contrib-ilmx` | The Tutor plugin: configuration, mounts and installs, MFE slot components, theme installation. It also configures the reusable plugins for ilmX, which stay separate repositories so others can reuse them. No business logic. |
-| `ilmx-brand` | Brand layer for the LMS and the MFEs: Paragon design tokens and the stylesheet. |
-| MFE forks (upstream names: `frontend-app-authn`, `frontend-app-authoring`, `frontend-app-discussions`) | Forks of the upstream MFEs that add the plugin slots ilmX needs. |
-| `ilmx-payments-woocommerce` | The WordPress/WooCommerce shop for course checkout, connected to the LMS; replaces the retired ecommerce service. |
-| `ilmx-data-migrations` | The tools that move the Juniper data to Verawood: inventory, key rename, Mongo copy, forum prep, shop import. |
+`existing` means it already existed in the Juniper era; `new` means it was created for Verawood.
+| Repository | Visibility | Origin | Purpose |
+|---|---|---|---|
+| [`ilmx-features-app`](https://github.com/PakistanX/ilmx-features-app) | private | new | ilmX features for Open edX as Django app plugins (edx-platform is not forked). Features are moved in from the Juniper codebase one at a time, each as a working deliverable. |
+| [`openedx-org-membership`](https://github.com/PakistanX/openedx-org-membership) | private | new | Reusable plugin: organization membership and roles, and access scoped by organization. Certificates belong with it, including a small independent view-only service so issued certificates keep working if ilmX is retired. No dependency on ilmX code. |
+| [`ilmx-adminpanel`](https://github.com/PakistanX/ilmx-adminpanel) | private | new | The admin panel backend API (users, roles, bulk registration and enrolment, analytics, reports, course management) used by the admin MFE. Depends on `openedx-org-membership`. |
+| [`frontend-app-ilmx-admin`](https://github.com/PakistanX/frontend-app-ilmx-admin) | private | new | The admin panel MFE that talks to `ilmx-adminpanel`. |
+| [`frontend-ilmx-widgets`](https://github.com/PakistanX/frontend-ilmx-widgets) | private | new | The ilmX React widgets rendered into MFE plugin slots, published as a pinned package (`@ilmx/widgets`) that `tutor-contrib-ilmx` installs. |
+| [`ilmx-xblocks`](https://github.com/PakistanX/ilmx-xblocks) | private | new | The XBlocks that exist only for ilmX, in one package. |
+| [`edx-ora2`](https://github.com/PakistanX/edx-ora2) | public | existing fork | Fork of upstream with ilmX changes, kept as small as possible and tracking the upstream release. |
+| [`edx_xblock_scorm`](https://github.com/PakistanX/edx_xblock_scorm) | public | existing fork | Same rule as `edx-ora2`. |
+| [`xblock-drag-and-drop-v2`](https://github.com/PakistanX/xblock-drag-and-drop-v2) | public | existing fork | Same rule as `edx-ora2`. |
+| [`xblock-image-explorer`](https://github.com/PakistanX/xblock-image-explorer) | public | existing fork | Same rule as `edx-ora2`. |
+| [`pxc`](https://github.com/PakistanX/pxc) | private | existing | Private copy of the upstream `pxc` XBlock. |
+| [`tutor-contrib-ilmx`](https://github.com/PakistanX/tutor-contrib-ilmx) | private | new | The Tutor plugin: configuration, mounts and installs, MFE slot components, theme installation. It also configures the reusable plugins for ilmX, which stay separate repositories so others can reuse them. No business logic. |
+| [`ilmx-brand`](https://github.com/PakistanX/ilmx-brand) | private | new | Brand layer for the LMS and the MFEs: Paragon design tokens and the stylesheet. |
+| [`frontend-app-authn`](https://github.com/PakistanX/frontend-app-authn) | public | new fork | Fork of the upstream MFE that adds the plugin slots ilmX needs. |
+| [`frontend-app-authoring`](https://github.com/PakistanX/frontend-app-authoring) | public | new fork | Same rule as `frontend-app-authn`. |
+| [`frontend-app-discussions`](https://github.com/PakistanX/frontend-app-discussions) | public | new fork | Same rule as `frontend-app-authn`. |
+| [`ilmx-payments-woocommerce`](https://github.com/PakistanX/ilmx-payments-woocommerce) | private | new | The WordPress/WooCommerce shop for course checkout, connected to the LMS; replaces the retired ecommerce service. |
+| [`ilmx-data-migrations`](https://github.com/PakistanX/ilmx-data-migrations) | private | new | The tools that move the Juniper data to Verawood: inventory, key rename, Mongo copy, forum prep, shop import. |
+
+Branches: own repos use `main` and `develop` (flow in `ilmx:ilmx-rules`); forks keep upstream's `main` and carry the work on `ilmx/verawood-*` branches.
+
+MFE slots in use (each is filled by a widget from `frontend-ilmx-widgets` through `tutor-contrib-ilmx`): `account.additional_profile_fields`, `authn.{banner_content,footer,form_header}`, `authoring.certificates_content`, `catalog.course_about_page.{course_media,intro,overview,sidebar}`, `discussions.author_name`, `layout.{footer,studio_footer,studio_header_actions}`, `learner_dashboard.{course_card_banner,course_list,widget_sidebar}`, `learning.{course_outline_sidebar,course_recommendations,progress_certificate_status}`; all `org.openedx.frontend.<name>.v1` except the catalog ones.
 
 ## Extension order
 Pick the first option that works and write one line on why each earlier one does not:
@@ -37,17 +48,11 @@ Pick the first option that works and write one line on why each earlier one does
 Frontend: slots first, then widgets (`frontend-ilmx-widgets`), then MFE edits. Never import a private upstream name without a test that fails when upstream moves it. A zero-diff fork branch of edx-platform exists only for emergency backports.
 
 ## Start-up patches
-A patch wraps one private upstream function, applies once, disables itself and logs if its target disappears, and has a test.
-| Patch | Target | Why no hook | Status |
+A patch wraps one private upstream function, applies once, disables itself and logs if its target disappears, and has a test. One patch is left:
+| Patch | Target | Why no hook | Upstream PR |
 |---|---|---|---|
-| Numerical input grading (non-numbers graded incorrect; setting `ILMX_JUNIPER_NUMERICAL_INPUT`) | `NumericalResponse.get_score` | the problem block has no grading hook | stays |
-These three are replaced by public extension points (each is its own feature PR in the ledger, with a test proving the replacement):
-| Was | Replaced by |
-|---|---|
-| `user_role` in the `edx-user-info` cookie (patch of `cookies._get_user_info_cookie_data`) | a Django middleware (plugin settings) that sets its own role cookie; the WordPress header reads it |
-| Search within followed posts (patch of `forum.api.search._get_thread_ids_from_indexes`) | an ilmX endpoint using the public `forum.api.search.search_threads` and the subscriptions API |
-| HTML placeholders `%%FIRSTNAME%%`, `%%USERNAME%%` (patch of `HtmlBlockMixin.get_html`) | the `VerticalBlockRenderCompleted` filter rewriting the rendered fragment |
-Admin actions are not patches: unregister the model and re-register a `ModelAdmin` subclass.
+| Numerical input grading (non-numbers graded incorrect; setting `ILMX_JUNIPER_NUMERICAL_INPUT`) | `NumericalResponse.get_score` | the problem block has no grading hook | none filed |
+Everything else uses a public extension point: filters and middleware for the cookie and the HTML placeholders, a plain endpoint for followed-post search, and `ModelAdmin` unregister and re-register for admin actions. Before adding a patch, follow the extension order above and write why each earlier option does not work.
 
 ## Storage
 Two buckets: private (signed URLs, import/export, ORA, SCORM, reports) and media (behind a CDN). Never write private files to
