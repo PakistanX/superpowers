@@ -5,7 +5,7 @@ on:
     paths: ["plugins/ilmx/**", ".claude-plugin/marketplace.json", ".github/workflows/ilmx.yml"]
   push:
     branches: [main, develop]
-    paths: ["plugins/ilmx/**"]
+    paths: ["plugins/ilmx/**", ".claude-plugin/marketplace.json", ".github/workflows/ilmx.yml"]
 
 permissions:
   contents: read
@@ -21,13 +21,14 @@ jobs:
       - run: pip install pyyaml pytest pytest-cov
       - name: Validate the plugin
         run: python plugins/ilmx/scripts/validate.py
-      - name: Tests (validator and guard hook), 100% of the validator
+      - name: Tests (validator and guard hook); the 100% gate covers scripts/validate.py only, the guard runs in a subprocess
         working-directory: plugins/ilmx
         run: python -m pytest -q tests --cov=scripts --cov-fail-under=100
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Plugin manifest check
+      - name: Plugin and marketplace check (CLI version pinned; warnings fail the build)
         run: |
-          npm install -g @anthropic-ai/claude-code
-          claude plugin validate plugins/ilmx
+          npm install -g @anthropic-ai/claude-code@2.1.318
+          claude plugin validate plugins/ilmx --strict
+          claude plugin validate . --strict
