@@ -3,15 +3,20 @@
 
 Subagents ignore "do not publish" in their prompts, so it is enforced here. Plugin subagents ignore hooks in their own
 frontmatter, which is why this is a plugin-level hook keyed on `agent_type`. Every `ilmx-*` agent except the orchestrator
-is a worker: it may not push, publish, comment, write to Taiga or GitHub, or spawn agents, and its file writes are limited
-to its own output. The main thread and agents that are not ilmX agents are unaffected.
+is a worker. A worker may only read from `git`, `gh`, GitHub and Taiga: anything that is not read-shaped is denied (an
+allow-list, so a new write command or tool name is blocked until someone allows it). It may not spawn agents, and its
+file writes are limited to its own output. The main thread and agents that are not ilmX agents are unaffected.
+
+The guard fails closed: an event it cannot read is denied, because exit code 1 would let the tool run.
 """
 import json
+import os
 import re
+import shlex
 import sys
 
 ORCHESTRATOR = "ilmx-orchestrator"
-# Read-only workers may not write files; these may write only a path containing the fragment. The implementer, the parity
+# Read-only workers may not write files; these may write only inside a directory ("/plans/") or to a file name. The implementer, the parity
 # tester and the writer write code, tests and drafts freely (they still cannot publish).
 READ_ONLY = {"ilmx-debugger", "ilmx-fetcher"}
 WRITE_ONLY_TO = {
@@ -19,18 +24,27 @@ WRITE_ONLY_TO = {
     "ilmx-parity-auditor": "/inventories/",
     "ilmx-reviewer": "findings.json",
 }
-PUBLISHING_COMMAND = re.compile(
-    r"\bgit\s+push\b"
-    r"|\bgh\s+pr\s+(create|review|comment|merge|close|edit|reopen|ready|lock|unlock)\b"
-    r"|\bgh\s+issue\s+(create|comment|close|edit|reopen|delete|transfer|lock|unlock|pin|unpin)\b"
-    r"|\bgh\s+(release|workflow|repo|label|secret|variable|ruleset|gist)\s+(create|edit|delete|run|enable|disable|set|rename|fork|archive)\b"
-    r"|\bgh\s+api\b.*(\s-X\b|\s--method\b|\s-f\b|\s-F\b|\s--field\b|\s--raw-field\b|\s--input\b)",
-    re.S,
-)
-WRITE_TOOL = re.compile(
-    r"^mcp__github__(create_|add_|merge_|update_|push_|fork_|delete_)"
-    r"|^mcp__taiga__taiga_\w*?(_create|_update|_delete|_bulk|_comment|_upvote|_downvote|_watch|_unwatch|_add|_remove|_resend|_test|_import|_like|_unlike|_edit)",
-)
+FILE_TOOLS = ("Write", "Edit", "NotebookEdit")
+AGENT_TOOLS = ("Agent", "Task")
+
+SEGMENT = re.compile(r"&&|\|\||[;&|\n]")
+GIT_OPTIONS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix"}
+GIT_READ_ONLY_DENIED = {"commit", "checkout", "switch", "reset", "restore", "clean", "add", "rm", "mv", "stash", "merge",
+                        "rebase", "cherry-pick", "revert", "apply", "am", "pull", "tag", "branch", "init", "clone"}
+GH_OPTIONS_WITH_VALUE = {"-R", "--repo", "--hostname"}
+GH_READ_ACTIONS = {"view", "list", "diff", "checks", "status", "search", "show"}
+GH_API_FIELD_FLAGS = ("-f", "-F", "--field", "--raw-field", "--input")
+NETWORK_TOOLS = {"curl", "wget", "http", "https", "xh"}
+NETWORK_TARGETS = ("github", "taiga")
+SHELL_WRITERS = {"tee", "rm", "mv", "cp", "touch", "mkdir", "rmdir", "ln", "chmod", "truncate"}
+REDIRECT = re.compile(r"(?<![0-9&>])>>?(?![&>])(?!\s*/dev/null)")
+
+GITHUB_READ_FIRST = {"get", "list", "search"}
+TAIGA_READ = {"get", "list", "search", "history", "stats", "filters", "data", "resolver", "timeline", "voters", "watchers",
+              "fans", "contacts", "liked", "voted", "watched", "me", "ref", "slug"}
+TAIGA_WRITE = {"create", "update", "delete", "bulk", "comment", "upvote", "downvote", "watch", "unwatch", "add", "remove",
+               "resend", "test", "import", "like", "unlike", "edit", "change", "assign", "set", "move", "close", "reorder",
+               "order", "export"}
 
 
 def deny(message):
@@ -38,26 +52,147 @@ def deny(message):
     sys.exit(2)
 
 
-def main():
+def read_event():
     event = json.load(sys.stdin)
+    if not isinstance(event, dict):
+        raise ValueError("event is not an object")
+    tool_input = event.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        raise ValueError("tool_input is not an object")
+    return event, tool_input
+
+
+def words(segment):
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        tokens = segment.split()
+    while tokens and (re.match(r"^\w+=", tokens[0]) or tokens[0] in ("sudo", "env", "command", "time", "nohup", "exec")):
+        tokens = tokens[1:]
+    return tokens
+
+
+def git_subcommand(tokens):
+    """The git subcommand and its arguments, after git's global options (`-C path`, `-c k=v`, ...)."""
+    rest = tokens[1:]
+    while rest and rest[0].startswith("-"):
+        option = rest[0]
+        rest = rest[2:] if option in GIT_OPTIONS_WITH_VALUE else rest[1:]
+    return (rest[0], rest[1:]) if rest else ("", [])
+
+
+def gh_command(tokens):
+    """The gh group, action and the remaining arguments, after gh's global options (`-R repo`)."""
+    rest = tokens[1:]
+    while rest and rest[0].startswith("-"):
+        rest = rest[2:] if rest[0] in GH_OPTIONS_WITH_VALUE else rest[1:]
+    group = rest[0] if rest else ""
+    action = rest[1] if len(rest) > 1 else ""
+    return group, action, rest[1:]
+
+
+def gh_api_writes(arguments):
+    """True when `gh api` is given a field or a method other than GET (`-X POST`, `-XPOST`, `--method=PUT`, `-fbody=x`)."""
+    for index, token in enumerate(arguments):
+        if token in ("-X", "--method"):
+            method = arguments[index + 1] if index + 1 < len(arguments) else ""
+        elif token.startswith("--method="):
+            method = token.split("=", 1)[1]
+        elif token.startswith("-X"):
+            method = token[2:]
+        elif token.startswith(GH_API_FIELD_FLAGS):
+            return True
+        else:
+            continue
+        if method.upper() != "GET":
+            return True
+    return False
+
+
+def shell_problem(agent, command):
+    """Why a worker may not run this command, or None."""
+    for segment in SEGMENT.split(command):
+        tokens = words(segment)
+        if not tokens:
+            continue
+        program = os.path.basename(tokens[0])
+        if program == "git":
+            subcommand, arguments = git_subcommand(tokens)
+            if subcommand == "push" or (subcommand == "subtree" and arguments[:1] == ["push"]):
+                return "push"
+            if agent in READ_ONLY and subcommand in GIT_READ_ONLY_DENIED:
+                return "change the working tree"
+        elif program == "gh":
+            group, action, rest = gh_command(tokens)
+            if group == "api":
+                if gh_api_writes(rest):
+                    return "write through the GitHub API"
+            elif group and group not in ("status", "search") and action not in GH_READ_ACTIONS:
+                return "run a gh command that is not read-only"
+        elif program in NETWORK_TOOLS and any(target in segment.lower() for target in NETWORK_TARGETS):
+            return "call GitHub or Taiga directly"
+        elif agent in READ_ONLY and (program in SHELL_WRITERS or (program == "sed" and any(
+                token.startswith("-i") or token == "--in-place" for token in tokens[1:]))):
+            return "write files from the shell"
+    if agent in READ_ONLY and REDIRECT.search(command):
+        return "write files from the shell"
+    return None
+
+
+def mcp_problem(tool):
+    """Why a worker may not call this MCP tool, or None. Only GitHub and Taiga servers are restricted."""
+    parts = tool.split("__")
+    server = parts[1].lower() if len(parts) > 2 else ""
+    name = parts[-1].lower()
+    if "github" in server:
+        if name.split("_")[0] in GITHUB_READ_FIRST or name.endswith("_read"):
+            return None
+        return "write to GitHub"
+    if "taiga" in server or name.startswith("taiga_"):
+        tokens = set(name.split("_"))
+        if tokens & TAIGA_READ and not tokens & TAIGA_WRITE:
+            return None
+        return "write to Taiga"
+    return None
+
+
+def file_problem(agent, tool_input, cwd):
+    path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    allowed = WRITE_ONLY_TO.get(agent)
+    if agent not in READ_ONLY and allowed is None:
+        return None
+    resolved = os.path.realpath(os.path.join(cwd, path)) if path else ""
+    inside = allowed in resolved if allowed and allowed.startswith("/") else os.path.basename(resolved) == allowed
+    if agent in READ_ONLY or not inside:
+        where = f"only to {allowed}" if allowed else "nothing"
+        return f"{agent} may write {where}. Hand back what you found instead of editing {path or 'a file'}."
+    return None
+
+
+def main():
+    try:
+        event, tool_input = read_event()
+    except ValueError as exc:  # json.JSONDecodeError is a ValueError
+        deny(f"ilmx guard could not read the tool event ({exc}); denied.")
     agent = (event.get("agent_type") or "").split(":")[-1]
     if not agent.startswith("ilmx-") or agent == ORCHESTRATOR:
         return
-    tool = event.get("tool_name", "")
-    tool_input = event.get("tool_input") or {}
-    if tool == "Agent":
+    tool = event.get("tool_name") or ""
+    if tool in AGENT_TOOLS:
         deny(f"{agent} may not spawn agents. Hand back to the orchestrator.")
-    if tool == "Bash" and PUBLISHING_COMMAND.search(tool_input.get("command", "")):
-        deny(f"{agent} must not push, publish, comment or run write calls. Write your file or report and hand back; "
-             "the orchestrator publishes after the owner's go.")
-    if WRITE_TOOL.search(tool):
-        deny(f"{agent} must not write to GitHub or Taiga. Hand back; the orchestrator writes after the owner's go.")
-    if tool in ("Write", "Edit"):
-        path = tool_input.get("file_path", "")
-        allowed = WRITE_ONLY_TO.get(agent)
-        if agent in READ_ONLY or (allowed is not None and allowed not in path):
-            where = f"only to a path containing {allowed}" if allowed else "nothing"
-            deny(f"{agent} may write {where}. Hand back what you found instead of editing {path or 'a file'}.")
+    if tool == "Bash":
+        problem = shell_problem(agent, str(tool_input.get("command") or ""))
+        if problem:
+            deny(f"{agent} must not {problem}. Write your file or report and hand back; the orchestrator publishes "
+                 "after the owner's go.")
+    elif tool.startswith("mcp__"):
+        problem = mcp_problem(tool)
+        if problem:
+            deny(f"{agent} must not {problem}. Hand back; the orchestrator writes after the owner's go.")
+    elif tool in FILE_TOOLS:
+        problem = file_problem(agent, tool_input, event.get("cwd") or "")
+        if problem:
+            deny(problem)
 
 
 if __name__ == "__main__":

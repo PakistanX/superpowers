@@ -6,8 +6,8 @@ description: "How the ilmX agents read and write Taiga stories and tasks through
 # Taiga
 
 Tickets are created and updated through the Taiga MCP, which is signed in as the owner's own account, so every write is made as
-the owner. **Only the orchestrator writes, and only after the owner's go.** The guard hook denies every `mcp__taiga__*`
-write tool for the other agents.
+the owner. **Only the orchestrator writes, and only after the owner's go.** The guard hook allows the other agents only
+read-shaped Taiga tools (get, list, search, history, stats) and denies everything else.
 
 ## Ids
 Project, epic, role, status and point ids are cached in the planning repository (`defaults/taiga.yaml`). Do not re-fetch
