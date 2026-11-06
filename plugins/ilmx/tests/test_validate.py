@@ -12,6 +12,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 def copy(tmp_path):
     target = tmp_path / "plugins" / "ilmx"
     shutil.copytree(ROOT, target, ignore=shutil.ignore_patterns("tests", "__pycache__"))
+    (tmp_path / ".claude-plugin").mkdir()
+    shutil.copy(ROOT.parent.parent / ".claude-plugin" / "marketplace.json", tmp_path / ".claude-plugin")
     (tmp_path / "skills").mkdir()
     for upstream in (ROOT.parent.parent / "skills").glob("*/SKILL.md"):
         (tmp_path / "skills" / upstream.parent.name).mkdir()
@@ -84,3 +86,30 @@ def test_agent_name_must_match_the_file(tmp_path):
     agent = root / "agents" / "ilmx-writer.md"
     agent.write_text(agent.read_text().replace("name: ilmx-writer", "name: writer"))
     assert "front matter needs name 'ilmx-writer'" in "\n".join(validate.check(root))
+
+
+def test_marketplace_entry(tmp_path):
+    root = copy(tmp_path)
+    market = tmp_path / ".claude-plugin" / "marketplace.json"
+    original = market.read_text()
+    market.write_text(original.replace('"source": "./plugins/ilmx"', '"source": "./plugins/other"'))
+    assert "does not point at plugins/ilmx" in "\n".join(validate.check(root))
+    market.write_text(original.replace('"name": "ilmx"', '"name": "elsewhere"'))
+    assert "no entry named 'ilmx'" in "\n".join(validate.check(root))
+    market.write_text("{")
+    assert "marketplace.json" in "\n".join(validate.check(root))
+    market.unlink()
+    assert "marketplace.json" in "\n".join(validate.check(root))
+
+
+def test_preloaded_skills(tmp_path):
+    root = copy(tmp_path)
+    planner = root / "agents" / "ilmx-planner.md"
+    text = planner.read_text()
+    planner.write_text(text.replace("skills: [ilmx-rules,", "skills: [ilmx-missing, ilmx-rules,"))
+    assert "skills: ilmx-missing does not resolve" in "\n".join(validate.check(root))
+    lines = [line for line in text.splitlines() if not line.startswith("skills:")]
+    planner.write_text("\n".join(lines) + "\n")
+    assert "a tools allow-list needs Skill or a skills: preload" in "\n".join(validate.check(root))
+    planner.write_text(text.replace("tools: Read, Grep, Glob, Bash, Write", "tools: Read, Skill").replace("skills: [", "xskills: ["))
+    assert validate.check(root) == []

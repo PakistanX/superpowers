@@ -32,6 +32,21 @@ def as_list(value):
     return list(value or [])
 
 
+def marketplace_problems(root):
+    """The marketplace entry must name the plugin and point at its directory."""
+    manifest = root.parent.parent / ".claude-plugin" / "marketplace.json"
+    try:
+        entries = json.loads(manifest.read_text())["plugins"]
+    except (OSError, ValueError, KeyError) as exc:
+        return [f".claude-plugin/marketplace.json: {exc}"]
+    entry = next((e for e in entries if e.get("name") == "ilmx"), None)
+    if entry is None:
+        return [".claude-plugin/marketplace.json: no entry named 'ilmx'"]
+    if (root.parent.parent / entry.get("source", "")).resolve() != root.resolve():
+        return [f".claude-plugin/marketplace.json: source {entry.get('source')!r} does not point at plugins/ilmx"]
+    return []
+
+
 def check(root=ROOT, upstream_skills=None):
     """Return a list of problems; empty means valid. `upstream_skills` is the upstream skills directory."""
     errors = []
@@ -45,6 +60,7 @@ def check(root=ROOT, upstream_skills=None):
         except (OSError, ValueError) as exc:
             errors.append(f"{rel}: {exc}")
 
+    errors += marketplace_problems(root)
     skills = {p.parent.name for p in (root / "skills").glob("*/SKILL.md")}
     agents = {p.stem for p in (root / "agents").glob("*.md")}
     bodies = []
@@ -72,6 +88,12 @@ def check(root=ROOT, upstream_skills=None):
             errors.append(f"{rel}: maxTurns must be a positive integer")
         if path.stem != ORCHESTRATOR and "Agent" not in as_list(data.get("disallowedTools")):
             errors.append(f"{rel}: workers must list Agent in disallowedTools")
+        preloaded = as_list(data.get("skills"))
+        for name in preloaded:
+            if name not in skills:
+                errors.append(f"{rel}: skills: {name} does not resolve")
+        if data.get("tools") and "Skill" not in as_list(data.get("tools")) and not preloaded:
+            errors.append(f"{rel}: a tools allow-list needs Skill or a skills: preload, or the agent cannot load its skills")
         bodies.append((path, path.read_text()))
 
     for path, text in bodies:
