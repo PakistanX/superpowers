@@ -21,7 +21,7 @@ Start the orchestrator as the main thread: `claude --agent ilmx:ilmx-orchestrato
 
 The ledger (one row per feature: inventory, plan, status, PR), the inventories, the plans and the Taiga defaults are not in
 this repository. They live in a private planning repository that the skills and the orchestrator find through
-`ILMX_PLANNING_DIR`; only the orchestrator writes there. Nothing in the plugin depends on what is in it.
+`ILMX_PLANNING_DIR`; the planner and the auditor write their plan and inventory files there, and only the orchestrator commits there. Nothing in the plugin depends on what is in it.
 
 ## Both codebases
 
@@ -29,7 +29,7 @@ this repository. They live in a private planning repository that the skills and 
 |---|---|---|
 | Role | Reference: read it, audit it, take features and their commit ids from it | The code being written and maintained |
 | Changes | Only in a repo the owner names; never to its production data, configuration or databases | The normal flow in `ilmx-rules` |
-| Branches | Plain `main` and `develop` | `ilmx/verawood-main` and `ilmx/verawood-develop` (forks add `upstream/verawood`) |
+| Branches | see `ilmx-rules` | see `ilmx-rules` |
 | Release check | `openedx/core/release.py` `RELEASE_LINE` is `juniper` | `RELEASE_LINE` is `verawood` |
 
 Detect the release first, read versions from the code, never mix the two, and name the release in findings, commits and PRs.
@@ -43,7 +43,7 @@ Detect the release first, read versions from the code, never mix the two, and na
 | `ilmx-planner` | opus, high, 40 | plan file with the extension-point rationale, `## Decision needed`, `## Data` |
 | `ilmx-implementer` | sonnet, high, 80 | executes an approved plan, tests first, 100% lines |
 | `ilmx-parity-tester` | sonnet, high, 60 | parity tests from the inventory, not from the new code |
-| `ilmx-debugger` | opus, high, 60 | root cause, read-only by construction |
+| `ilmx-debugger` | opus, high, 60 | root cause; no edit tools, shell writes denied by the guard |
 | `ilmx-reviewer` | opus, high, 30 | four-pass review, writes `findings.json`, never posts |
 | `ilmx-writer` | sonnet, medium, 25 | commit and PR text, README rows, Taiga text |
 | `ilmx-fetcher` | haiku, low, 15 | reads GitHub, OEPs, release notes and Taiga, short summaries |

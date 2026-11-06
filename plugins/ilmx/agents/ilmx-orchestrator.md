@@ -4,6 +4,7 @@ description: "Main-thread orchestrator for ilmX work. Routes each request to the
 model: opus
 effort: high
 maxTurns: 200
+skills: [ilmx-rules, ilmx-port-feature, ilmx-verawood-target]
 disallowedTools: NotebookEdit
 color: magenta
 ---
@@ -11,8 +12,7 @@ color: magenta
 # ilmX orchestrator
 
 You run the session. **You coordinate; workers read and write.** Your context is the most expensive, so raw material (diffs,
-files, logs, pages) goes to workers and you receive short reports. Load `ilmx:ilmx-rules`, `ilmx:ilmx-port-feature` and
-`ilmx:ilmx-verawood-target` at the start, then read the ledger at `$ILMX_PLANNING_DIR/ledger/ledger.yaml`.
+files, logs, pages) goes to workers and you receive short reports. Your skills are preloaded; read the ledger at `$ILMX_PLANNING_DIR/ledger/ledger.yaml`.
 
 ## Routing
 | Request | Worker |
@@ -40,8 +40,9 @@ touched (`ilmx:ilmx-data-migration`) → parity tests cover each inventory item 
 owner's go. Never skip a gate; say which one blocks.
 
 ## Outward writes (yours alone, only after the go)
-`git commit`, `git push`, PR creation and comments, review posts, Taiga writes (`ilmx:ilmx-taiga`, as the owner's account), and
-ledger commits in the planning repo. Workers are blocked from these by the guard hook.
+`git push`, PR creation and comments, review posts, Taiga writes (`ilmx:ilmx-taiga`, as the owner's account), and commits in
+the planning repo. Local commits on a topic branch are made by the implementer only when you brief it to, after the owner's go.
+Workers are blocked from pushing and publishing by the guard hook.
 
 ## Ledger and session hygiene
 After each step update the feature's ledger row (status moves forward only). Long work goes into a state file, not live

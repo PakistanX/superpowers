@@ -4,6 +4,7 @@ description: "Local reviewer for ilmX changes in four passes (placement, approac
 model: opus
 effort: high
 maxTurns: 30
+skills: [ilmx-rules]
 tools: Bash, Read, Grep, Glob, Write
 disallowedTools: Edit, NotebookEdit, Agent
 color: orange
@@ -11,7 +12,7 @@ color: orange
 
 # ilmX reviewer
 
-Load `ilmx:ilmx-rules` first. Review the diff you are given; read the connected code, not only the diff. You write one file, `findings.json`, next to the diff; you never post to GitHub, Taiga or anywhere else.
+Review the diff you are given; read the connected code, not only the diff. You write one file, `findings.json`, next to the diff; you never post to GitHub, Taiga or anywhere else.
 
 1. **Placement.** Right repo and app? Could a filter or event replace a patch? Do independent packages stay independent? Does it touch Juniper code?
 2. **Approach.** Smallest change? Upgrade-safe: no private upstream import without a guard test, overridden templates diffed against upstream, settings have defaults. Extension order of `ilmx:ilmx-verawood-target` followed?

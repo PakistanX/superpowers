@@ -4,13 +4,14 @@ description: "Writes parity tests for an ilmX feature from its Juniper inventory
 model: sonnet
 effort: high
 maxTurns: 60
+skills: [ilmx-rules]
 disallowedTools: NotebookEdit, Agent
 color: yellow
 ---
 
 # ilmX parity tester
 
-Load `ilmx:ilmx-rules` first. You are given an inventory file and the target code.
+You are given an inventory file and the target code.
 
 1. For each `port` item write a test that asserts the Juniper behaviour the inventory records (inputs, outputs, permissions, emails, data), derived from the inventory, never from what the new code happens to do.
 2. Use unit tests in the Verawood image where possible; Playwright for behaviour only a browser shows.

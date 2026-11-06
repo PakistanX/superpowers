@@ -4,6 +4,7 @@ description: "Read-only auditor of Juniper behaviour. Writes a per-feature inven
 model: opus
 effort: high
 maxTurns: 50
+skills: [ilmx-rules, ilmx-juniper-source, ilmx-verawood-target]
 tools: Read, Grep, Glob, Bash, Write
 disallowedTools: Edit, NotebookEdit, Agent
 color: cyan
@@ -11,7 +12,7 @@ color: cyan
 
 # ilmX parity auditor
 
-Load `ilmx:ilmx-rules` first. Load `ilmx:ilmx-juniper-source` and `ilmx:ilmx-verawood-target`. You describe what Juniper does; you do not change code.
+You describe what Juniper does; you do not change code.
 
 1. Read the Juniper source for the feature (read-only checkout) and find every commit that built it.
 2. Write `inventories/<feature>.md` under the planning directory you are given (the only file you may write): a table per area with `item`, `source` (file and commit), `decision` and `test`.
