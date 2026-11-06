@@ -3,7 +3,8 @@
 Agents and skills for the ilmX upgrade from Open edX Juniper to Open edX Verawood. It is its own plugin (name `ilmx`)
 that sits next to Superpowers: its skills call the Superpowers skills (`superpowers:brainstorming`,
 `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`),
-so install both. Nothing outside `plugins/ilmx` is changed except one entry in the marketplace file.
+so install both. Nothing outside `plugins/ilmx` is changed except one entry in the marketplace file and the workflow
+`.github/workflows/ilmx.yml`.
 
 ## Install
 
@@ -15,6 +16,12 @@ export ILMX_PLANNING_DIR=~/path/to/ilmx-planning   # the private planning reposi
 ```
 
 Start the orchestrator as the main thread: `claude --agent ilmx:ilmx-orchestrator`.
+
+## Private data
+
+The ledger (one row per feature: inventory, plan, status, PR), the inventories, the plans and the Taiga defaults are not in
+this repository. They live in a private planning repository that the skills and the orchestrator find through
+`ILMX_PLANNING_DIR`; only the orchestrator writes there. Nothing in the plugin depends on what is in it.
 
 ## Both codebases
 
@@ -56,7 +63,7 @@ call GitHub or Taiga write tools, or spawn agents; the planner, auditor and revi
 ## Skills
 
 `ilmx-rules` (the rules and the one copy of the PR anatomy), `ilmx-juniper-source`, `ilmx-verawood-target` (repository
-map, pins, extension order, start-up patches), `ilmx-data-migration` (the data-risk gate), `ilmx-port-feature` (the
+map with links, visibility and origin, pins, branches, extension order, MFE slots, the remaining start-up patch), `ilmx-data-migration` (the data-risk gate), `ilmx-port-feature` (the
 workflow), `ilmx-repo-pass`, `ilmx-taiga`.
 
 ## Checks
